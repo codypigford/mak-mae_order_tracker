@@ -519,11 +519,25 @@
         </div>
 
         <hr class="form-divider">
-        <div class="form-section-label">Shipping Address</div>
+        <div class="form-section-label">Delivery Method</div>
 
+        <div class="form-group full-width" style="display:flex;gap:24px;padding:4px 0;">
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+            <input type="radio" name="deliveryMethod" id="deliveryShip" value="Ship" onchange="toggleAddressFields()" checked style="width:auto;accent-color:var(--accent);">
+            <span style="font-weight:500;">Ship</span>
+          </label>
+          <label style="display:flex;align-items:center;gap:8px;cursor:pointer;margin-bottom:0;">
+            <input type="radio" name="deliveryMethod" id="deliveryPickup" value="Local Pickup" onchange="toggleAddressFields()" style="width:auto;accent-color:var(--accent);">
+            <span style="font-weight:500;">Local Pickup</span>
+          </label>
+        </div>
+
+        <div id="addressFieldsWrapper">
         <div class="form-group full-width">
           <label>Address</label>
           <input id="orderAddress" placeholder="123 Main St">
+        </div>
+        <div class="form-group" style="display:contents;">
         </div>
         <div class="form-group">
           <label>City</label>
@@ -537,6 +551,7 @@
           <label>Zip</label>
           <input id="orderZip" placeholder="37209" style="max-width:180px;">
         </div>
+        </div><!-- end addressFieldsWrapper -->
 
         <hr class="form-divider">
         <div class="form-section-label">Status</div>
@@ -773,7 +788,9 @@
       case 'color': return (o.color || '').toLowerCase();
       case 'received': return o.dateReceived || '';
       case 'due': return o.dateDue || '';
-      case 'location': return [o.city, o.state, o.zip].filter(Boolean).join(', ').toLowerCase();
+      case 'location': 
+        var locStr = [o.city, o.state, o.zip].filter(Boolean).join(', ').toLowerCase();
+        return locStr || (o.deliveryMethod === 'Local Pickup' ? 'local pickup' : '');
       case 'payment': return o.paymentStatus || '';
       case 'status': return o.orderStatus || '';
       case 'notes': return (o.notes || '').toLowerCase();
@@ -825,6 +842,7 @@
         dueTd = '<span style="color:var(--amber);font-weight:600;">' + dueTd + '</span>';
       }
       var loc = [o.city, o.state, o.zip].filter(Boolean).join(', ');
+      if (!loc && o.deliveryMethod === 'Local Pickup') loc = '<span style="color:var(--text-muted);font-style:italic;">Local Pickup</span>';
       var noteTitle = (o.notes || '').replace(/"/g, '&quot;');
       rows += '<tr>' +
         '<td><strong>#' + o.id + '</strong></td>' +
@@ -1001,6 +1019,18 @@
     }
   }
 
+  function toggleAddressFields() {
+    var isPickup = $('deliveryPickup').checked;
+    var wrapper = $('addressFieldsWrapper');
+    wrapper.style.display = isPickup ? 'none' : 'contents';
+    if (isPickup) {
+      $('orderAddress').value = '';
+      $('orderCity').value = '';
+      $('orderState').value = '';
+      $('orderZip').value = '';
+    }
+  }
+
   function openOrderModal(order) {
     populateCustomerDropdown(order ? order.customerId : null);
     $('orderEditId').value = order ? order.id : '';
@@ -1017,6 +1047,13 @@
     $('orderPaymentStatus').value = order ? order.paymentStatus : 'Unpaid';
     $('orderOrderStatus').value = order ? order.orderStatus : 'Pending';
     $('orderNotes').value = order ? order.notes : '';
+    // Set delivery method
+    if (order && order.deliveryMethod === 'Local Pickup') {
+      $('deliveryPickup').checked = true;
+    } else {
+      $('deliveryShip').checked = true;
+    }
+    toggleAddressFields();
     openModal('orderModal');
   }
   function editOrder(id) {
@@ -1032,6 +1069,7 @@
     if (!item) { toast('Please enter an item.'); return; }
     if (!dateReceived) { toast('Please enter a date received.'); return; }
 
+    var isPickup = $('deliveryPickup').checked;
     var obj = {
       customerId: customerId,
       dateReceived: dateReceived,
@@ -1039,10 +1077,11 @@
       item: item,
       size: $('orderSize').value.trim(),
       color: $('orderColor').value.trim(),
-      address: $('orderAddress').value.trim(),
-      city: $('orderCity').value.trim(),
-      state: $('orderState').value.trim().toUpperCase(),
-      zip: $('orderZip').value.trim(),
+      deliveryMethod: isPickup ? 'Local Pickup' : 'Ship',
+      address: isPickup ? '' : $('orderAddress').value.trim(),
+      city: isPickup ? '' : $('orderCity').value.trim(),
+      state: isPickup ? '' : $('orderState').value.trim().toUpperCase(),
+      zip: isPickup ? '' : $('orderZip').value.trim(),
       paymentStatus: $('orderPaymentStatus').value,
       orderStatus: $('orderOrderStatus').value,
       notes: $('orderNotes').value.trim()

@@ -181,7 +181,6 @@
   .badge-paid { background: var(--green-light); color: var(--green); }
   .badge-unpaid { background: var(--red-light); color: var(--red); }
   .badge-partial { background: var(--amber-light); color: var(--amber); }
-  .badge-invoiced { background: var(--blue-light); color: var(--blue); }
 
   .empty-state { padding: 48px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
 
@@ -394,7 +393,6 @@
           <option value="">All Payment Status</option>
           <option value="Unpaid">Unpaid</option>
           <option value="Partial">Partial</option>
-          <option value="Invoiced">Invoiced</option>
           <option value="Paid">Paid</option>
         </select>
         <button class="btn btn-primary" onclick="openOrderModal()">
@@ -561,7 +559,6 @@
           <select id="orderPaymentStatus">
             <option>Unpaid</option>
             <option>Partial</option>
-            <option>Invoiced</option>
             <option>Paid</option>
           </select>
         </div>
@@ -570,8 +567,7 @@
           <select id="orderOrderStatus">
             <option>Pending</option>
             <option>In Progress</option>
-            <option>Shipped</option>
-            <option>Completed</option>
+            <option>Done</option>
             <option>Cancelled</option>
           </select>
         </div>
@@ -604,7 +600,7 @@
     ],
     orders: [
       { id: 1001, customerId: 1, dateReceived: '2026-02-15', dateDue: '2026-02-28', item: 'Custom Embroidered Polo', size: 'Medium', color: 'Navy Blue', address: '412 Oak Lane', city: 'Nashville', state: 'TN', zip: '37209', paymentStatus: 'Paid', orderStatus: 'In Progress', notes: 'Logo on left chest, gold thread' },
-      { id: 1002, customerId: 2, dateReceived: '2026-02-17', dateDue: '2026-03-03', item: 'Vinyl Banner', size: '4ft x 8ft', color: 'Full Color', address: '88 Commerce St', city: 'Nashville', state: 'TN', zip: '37203', paymentStatus: 'Invoiced', orderStatus: 'Pending', notes: 'Outdoor use - needs grommets' },
+      { id: 1002, customerId: 2, dateReceived: '2026-02-17', dateDue: '2026-03-03', item: 'Vinyl Banner', size: '4ft x 8ft', color: 'Full Color', address: '88 Commerce St', city: 'Nashville', state: 'TN', zip: '37203', paymentStatus: 'Partial', orderStatus: 'Pending', notes: 'Outdoor use - needs grommets' },
       { id: 1003, customerId: 3, dateReceived: '2026-02-20', dateDue: '2026-02-25', item: 'Screen Printed T-Shirts', size: 'Assorted (S-XL)', color: 'Black', address: '1500 Hillsboro Pike', city: 'Nashville', state: 'TN', zip: '37212', paymentStatus: 'Unpaid', orderStatus: 'Pending', notes: 'Qty 50, front print only' },
     ],
     nextCustId: 4,
@@ -688,7 +684,7 @@
     var cls = {
       'Pending': 'badge-pending', 'In Progress': 'badge-in-progress',
       'Shipped': 'badge-shipped', 'Completed': 'badge-completed', 'Cancelled': 'badge-cancelled',
-      'Paid': 'badge-paid', 'Unpaid': 'badge-unpaid', 'Partial': 'badge-partial', 'Invoiced': 'badge-invoiced'
+      'Paid': 'badge-paid', 'Unpaid': 'badge-unpaid', 'Partial': 'badge-partial'
     };
     return '<span class="badge ' + (cls[val] || 'badge-pending') + '">' + val + '</span>';
   }
@@ -704,9 +700,9 @@
   function isDueSoon(d) {
     if (!d) return false;
     var due = new Date(d + 'T00:00:00');
-    var now = new Date(); now.setHours(0,0,0,0);
-    var diff = (due - now) / (1000*60*60*24);
-    return diff >= 0 && diff <= 3;
+    var now = new Date();
+    var diffHours = (due - now) / (1000*60*60);
+    return diffHours >= 0 && diffHours <= 72;
   }
   function isOverdue(d) {
     if (!d) return false;
@@ -731,17 +727,15 @@
 
   // ── Dashboard ──
   function renderDashboard() {
-    var active = data.orders.filter(function(o) { return o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Completed'; });
-    var pending = data.orders.filter(function(o) { return o.orderStatus === 'Pending'; }).length;
-    var inProgress = data.orders.filter(function(o) { return o.orderStatus === 'In Progress'; }).length;
+    var active = data.orders.filter(function(o) { return o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Completed' && o.orderStatus !== 'Shipped'; });
     var overdue = active.filter(function(o) { return isOverdue(o.dateDue); }).length;
-    var dueSoon = active.filter(function(o) { return isDueSoon(o.dateDue); }).length;
+    var dueSoon = active.filter(function(o) { return isDueSoon(o.dateDue) && !isOverdue(o.dateDue); }).length;
     var unpaid = data.orders.filter(function(o) { return o.paymentStatus === 'Unpaid' || o.paymentStatus === 'Partial'; }).length;
 
     $('dashCards').innerHTML =
-      '<div class="dash-card"><div class="dash-card-label">Total Orders</div><div class="dash-card-value">' + data.orders.length + '</div><div class="dash-card-sub">' + active.length + ' active</div></div>' +
-      '<div class="dash-card"><div class="dash-card-label">Pending</div><div class="dash-card-value">' + pending + '</div><div class="dash-card-sub">' + inProgress + ' in progress</div></div>' +
-      '<div class="dash-card"><div class="dash-card-label">Due Soon</div><div class="dash-card-value"' + (dueSoon > 0 ? ' style="color:var(--amber)"' : '') + '>' + dueSoon + '</div><div class="dash-card-sub">' + (overdue > 0 ? '<span style="color:var(--red);font-weight:600;">' + overdue + ' overdue</span>' : 'None overdue') + '</div></div>' +
+      '<div class="dash-card"><div class="dash-card-label">Active Orders</div><div class="dash-card-value">' + active.length + '</div><div class="dash-card-sub">' + data.orders.length + ' total orders</div></div>' +
+      '<div class="dash-card"><div class="dash-card-label">Due Soon</div><div class="dash-card-value"' + (dueSoon > 0 ? ' style="color:var(--amber)"' : '') + '>' + dueSoon + '</div><div class="dash-card-sub">Within 72 hours</div></div>' +
+      '<div class="dash-card"><div class="dash-card-label">Overdue</div><div class="dash-card-value"' + (overdue > 0 ? ' style="color:var(--red)"' : '') + '>' + overdue + '</div><div class="dash-card-sub">' + (overdue > 0 ? 'Needs attention' : 'All on track') + '</div></div>' +
       '<div class="dash-card"><div class="dash-card-label">Awaiting Payment</div><div class="dash-card-value"' + (unpaid > 0 ? ' style="color:var(--red)"' : '') + '>' + unpaid + '</div><div class="dash-card-sub">' + data.customers.length + ' total customers</div></div>';
 
     var recent = data.orders.slice().sort(function(a, b) { return b.id - a.id; }).slice(0, 5);
@@ -762,7 +756,7 @@
       $('recentOrdersTable').innerHTML = '<table><thead><tr><th>Order #</th><th>Customer</th><th>Item</th><th>Date Due</th><th>Payment</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table>';
     }
 
-    $('headerStats').innerHTML = '<span><strong>' + data.orders.length + '</strong> Orders</span><span><strong>' + active.length + '</strong> Active</span><span><strong>' + data.customers.length + '</strong> Customers</span>';
+    $('headerStats').innerHTML = '<span><strong>' + active.length + '</strong> Active</span><span><strong>' + data.orders.length + '</strong> Total</span><span><strong>' + data.customers.length + '</strong> Customers</span>';
   }
 
   // ── Order Sorting State ──
@@ -804,6 +798,7 @@
     var sf = $('orderStatusFilter') ? $('orderStatusFilter').value : '';
     var pf = $('paymentStatusFilter') ? $('paymentStatusFilter').value : '';
     var orders = data.orders.slice();
+    var isSearchingOrFiltering = q || sf || pf;
 
     if (q) {
       orders = orders.filter(function(o) {
@@ -813,6 +808,13 @@
     }
     if (sf) orders = orders.filter(function(o) { return o.orderStatus === sf; });
     if (pf) orders = orders.filter(function(o) { return o.paymentStatus === pf; });
+
+    // Hide completed/shipped/cancelled orders by default
+    if (!isSearchingOrFiltering) {
+      orders = orders.filter(function(o) {
+        return o.orderStatus !== 'Shipped' && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled';
+      });
+    }
 
     // Sort
     orders.sort(function(a, b) {
@@ -1045,7 +1047,9 @@
     $('orderState').value = order ? order.state : '';
     $('orderZip').value = order ? order.zip : '';
     $('orderPaymentStatus').value = order ? order.paymentStatus : 'Unpaid';
-    $('orderOrderStatus').value = order ? order.orderStatus : 'Pending';
+    var editStatus = order ? order.orderStatus : 'Pending';
+    if (editStatus === 'Shipped' || editStatus === 'Completed') editStatus = 'Done';
+    $('orderOrderStatus').value = editStatus;
     $('orderNotes').value = order ? order.notes : '';
     // Set delivery method
     if (order && order.deliveryMethod === 'Local Pickup') {
@@ -1083,7 +1087,11 @@
       state: isPickup ? '' : $('orderState').value.trim().toUpperCase(),
       zip: isPickup ? '' : $('orderZip').value.trim(),
       paymentStatus: $('orderPaymentStatus').value,
-      orderStatus: $('orderOrderStatus').value,
+      orderStatus: (function() {
+        var status = $('orderOrderStatus').value;
+        if (status === 'Done') return isPickup ? 'Completed' : 'Shipped';
+        return status;
+      })(),
       notes: $('orderNotes').value.trim()
     };
 

@@ -276,6 +276,26 @@
 
   .notes-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-style: italic; }
 
+  th.sortable {
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-right: 22px;
+    transition: color var(--transition);
+  }
+  th.sortable:hover { color: var(--accent); }
+  th.sortable::after {
+    content: '⇅';
+    position: absolute;
+    right: 6px;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 10px;
+    opacity: 0.4;
+  }
+  th.sortable.sort-asc::after { content: '▲'; opacity: 0.8; color: var(--accent); }
+  th.sortable.sort-desc::after { content: '▼'; opacity: 0.8; color: var(--accent); }
+
   /* ── Toast ── */
   .toast-container { position: fixed; top: 76px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
   .toast {
@@ -406,7 +426,7 @@
 </div>
 
 <!-- ===== CUSTOMER MODAL ===== -->
-<div class="modal-overlay" id="customerModal">
+<div class="modal-overlay" id="customerModal" style="z-index:600;">
   <div class="modal">
     <div class="modal-head">
       <h3 id="custModalTitle">Add Customer</h3>
@@ -479,7 +499,7 @@
           </select>
         </div>
         <div class="form-group" style="display:flex;align-items:end;">
-          <button class="btn btn-secondary btn-sm" type="button" onclick="closeModal('orderModal');openCustomerModal()" style="white-space:nowrap;">+ New Customer</button>
+          <button class="btn btn-secondary btn-sm" type="button" onclick="openCustomerFromOrder()" style="white-space:nowrap;">+ New Customer</button>
         </div>
 
         <hr class="form-divider">
@@ -730,12 +750,43 @@
     $('headerStats').innerHTML = '<span><strong>' + data.orders.length + '</strong> Orders</span><span><strong>' + active.length + '</strong> Active</span><span><strong>' + data.customers.length + '</strong> Customers</span>';
   }
 
+  // ── Order Sorting State ──
+  var orderSortCol = 'id';
+  var orderSortDir = 'desc';
+
+  function sortOrders(col) {
+    if (orderSortCol === col) {
+      orderSortDir = orderSortDir === 'asc' ? 'desc' : 'asc';
+    } else {
+      orderSortCol = col;
+      orderSortDir = 'asc';
+    }
+    renderOrders();
+  }
+
+  function getOrderSortValue(o, col) {
+    switch (col) {
+      case 'id': return o.id;
+      case 'customer': return custName(o.customerId).toLowerCase();
+      case 'item': return (o.item || '').toLowerCase();
+      case 'size': return (o.size || '').toLowerCase();
+      case 'color': return (o.color || '').toLowerCase();
+      case 'received': return o.dateReceived || '';
+      case 'due': return o.dateDue || '';
+      case 'location': return [o.city, o.state, o.zip].filter(Boolean).join(', ').toLowerCase();
+      case 'payment': return o.paymentStatus || '';
+      case 'status': return o.orderStatus || '';
+      case 'notes': return (o.notes || '').toLowerCase();
+      default: return '';
+    }
+  }
+
   // ── Orders Table ──
   function renderOrders() {
     var q = ($('orderSearch') ? $('orderSearch').value : '').toLowerCase();
     var sf = $('orderStatusFilter') ? $('orderStatusFilter').value : '';
     var pf = $('paymentStatusFilter') ? $('paymentStatusFilter').value : '';
-    var orders = data.orders.slice().sort(function(a, b) { return b.id - a.id; });
+    var orders = data.orders.slice();
 
     if (q) {
       orders = orders.filter(function(o) {
@@ -745,6 +796,19 @@
     }
     if (sf) orders = orders.filter(function(o) { return o.orderStatus === sf; });
     if (pf) orders = orders.filter(function(o) { return o.paymentStatus === pf; });
+
+    // Sort
+    orders.sort(function(a, b) {
+      var aVal = getOrderSortValue(a, orderSortCol);
+      var bVal = getOrderSortValue(b, orderSortCol);
+      var result = 0;
+      if (typeof aVal === 'number') {
+        result = aVal - bVal;
+      } else {
+        result = aVal < bVal ? -1 : aVal > bVal ? 1 : 0;
+      }
+      return orderSortDir === 'desc' ? -result : result;
+    });
 
     if (!orders.length) {
       $('ordersTable').innerHTML = '<div class="empty-state">No orders found.</div>';
@@ -780,8 +844,25 @@
         '</div></td></tr>';
     }
 
+    function thClass(col) {
+      var cls = 'sortable';
+      if (orderSortCol === col) cls += orderSortDir === 'asc' ? ' sort-asc' : ' sort-desc';
+      return cls;
+    }
+
     $('ordersTable').innerHTML = '<table><thead><tr>' +
-      '<th>Order #</th><th>Customer</th><th>Item</th><th>Size</th><th>Color</th><th>Received</th><th>Due</th><th>Location</th><th>Payment</th><th>Status</th><th>Notes</th><th>Actions</th>' +
+      '<th class="' + thClass('id') + '" onclick="sortOrders(\'id\')">Order #</th>' +
+      '<th class="' + thClass('customer') + '" onclick="sortOrders(\'customer\')">Customer</th>' +
+      '<th class="' + thClass('item') + '" onclick="sortOrders(\'item\')">Item</th>' +
+      '<th class="' + thClass('size') + '" onclick="sortOrders(\'size\')">Size</th>' +
+      '<th class="' + thClass('color') + '" onclick="sortOrders(\'color\')">Color</th>' +
+      '<th class="' + thClass('received') + '" onclick="sortOrders(\'received\')">Received</th>' +
+      '<th class="' + thClass('due') + '" onclick="sortOrders(\'due\')">Due</th>' +
+      '<th class="' + thClass('location') + '" onclick="sortOrders(\'location\')">Location</th>' +
+      '<th class="' + thClass('payment') + '" onclick="sortOrders(\'payment\')">Payment</th>' +
+      '<th class="' + thClass('status') + '" onclick="sortOrders(\'status\')">Status</th>' +
+      '<th class="' + thClass('notes') + '" onclick="sortOrders(\'notes\')">Notes</th>' +
+      '<th>Actions</th>' +
       '</tr></thead><tbody>' + rows + '</tbody></table>';
   }
 
@@ -789,6 +870,10 @@
   function renderCustomers() {
     var q = ($('custSearch') ? $('custSearch').value : '').toLowerCase();
     var custs = data.customers.slice();
+    // Always sort alphabetically by name
+    custs.sort(function(a, b) {
+      return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0;
+    });
     if (q) {
       custs = custs.filter(function(c) {
         return (c.name + ' ' + c.email + ' ' + c.phone).toLowerCase().indexOf(q) !== -1;
@@ -823,6 +908,8 @@
   function renderAll() { renderDashboard(); renderOrders(); renderCustomers(); }
 
   // ── Customer CRUD ──
+  var openedFromOrder = false;
+
   function openCustomerModal(cust) {
     $('custEditId').value = cust ? cust.id : '';
     $('custModalTitle').textContent = cust ? 'Edit Customer' : 'Add Customer';
@@ -834,6 +921,10 @@
     $('custState').value = cust ? cust.state : '';
     $('custZip').value = cust ? cust.zip : '';
     openModal('customerModal');
+  }
+  function openCustomerFromOrder() {
+    openedFromOrder = true;
+    openCustomerModal();
   }
   function editCustomer(id) {
     var c = data.customers.find(function(x) { return x.id === id; });
@@ -852,18 +943,31 @@
       zip: $('custZip').value.trim()
     };
     var editId = $('custEditId').value;
+    var newId = null;
     if (editId) {
       var c = data.customers.find(function(x) { return x.id === +editId; });
       Object.assign(c, obj);
       toast('Customer updated!');
     } else {
-      obj.id = data.nextCustId++;
+      newId = data.nextCustId++;
+      obj.id = newId;
       data.customers.push(obj);
       toast('Customer added!');
     }
     saveData();
     closeModal('customerModal');
-    renderAll();
+
+    // If opened from order modal, refresh customer dropdown and auto-select new customer
+    if (openedFromOrder) {
+      openedFromOrder = false;
+      populateCustomerDropdown(newId || +editId);
+      if (newId) {
+        $('orderCustomer').value = newId;
+        autofillAddress();
+      }
+    } else {
+      renderAll();
+    }
   }
   function deleteCustomer(id) {
     if (!confirm('Delete this customer? Orders referencing them will show "Unknown".')) return;
@@ -875,9 +979,12 @@
 
   // ── Order CRUD ──
   function populateCustomerDropdown(selectedId) {
+    var sorted = data.customers.slice().sort(function(a, b) {
+      return a.name.toLowerCase() < b.name.toLowerCase() ? -1 : a.name.toLowerCase() > b.name.toLowerCase() ? 1 : 0;
+    });
     var opts = '<option value="">-- Select Customer --</option>';
-    for (var i = 0; i < data.customers.length; i++) {
-      var c = data.customers[i];
+    for (var i = 0; i < sorted.length; i++) {
+      var c = sorted[i];
       opts += '<option value="' + c.id + '"' + (c.id === selectedId ? ' selected' : '') + '>' + c.name + '</option>';
     }
     $('orderCustomer').innerHTML = opts;

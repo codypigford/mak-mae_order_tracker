@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>OrderFlow — Customer Order Tracker</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Playfair+Display:wght@600;700&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F4F1EC;
+    --surface: #FFFFFF;
+    --surface-alt: #FAF8F5;
+    --border: #E2DDD5;
+    --border-strong: #C9C2B8;
+    --text: #2C2825;
+    --text-muted: #7A746C;
+    --text-light: #A39D95;
+    --accent: #B85C38;
+    --accent-hover: #A04E2E;
+    --accent-light: #F5E6DE;
+    --green: #4A7C59;
+    --green-light: #E3F0E7;
+    --blue: #3B6B8A;
+    --blue-light: #DDE9F0;
+    --amber: #9E7C2B;
+    --amber-light: #F5EDD4;
+    --red: #A63D40;
+    --red-light: #F5DEDE;
+    --purple: #5C4B8A;
+    --purple-light: #E8E3F3;
+    --radius: 10px;
+    --radius-lg: 14px;
+    --shadow-sm: 0 1px 3px rgba(44,40,37,0.06);
+    --shadow: 0 2px 8px rgba(44,40,37,0.08);
+    --shadow-lg: 0 8px 24px rgba(44,40,37,0.10);
+    --transition: 0.2s ease;
+  }
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    line-height: 1.5;
+  }
+
+  /* ── Header ── */
+  .header {
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 0 32px;
+    height: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: var(--shadow-sm);
+  }
+  .logo {
+    font-family: 'Playfair Display', serif;
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+  .header-stats {
+    display: flex;
+    gap: 24px;
+    font-size: 13px;
+    color: var(--text-muted);
+  }
+  .header-stats strong { color: var(--text); font-weight: 600; }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: calc(100vh - 64px); }
+
+  /* ── Sidebar ── */
+  .sidebar {
+    width: 220px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    flex-shrink: 0;
+  }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 24px;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-muted);
+    cursor: pointer;
+    transition: all var(--transition);
+    border-left: 3px solid transparent;
+  }
+  .nav-item:hover { color: var(--text); background: var(--surface-alt); }
+  .nav-item.active { color: var(--accent); background: var(--accent-light); border-left-color: var(--accent); font-weight: 600; }
+  .nav-item svg { width: 18px; height: 18px; flex-shrink: 0; }
+  .nav-section {
+    padding: 20px 24px 8px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-light);
+  }
+
+  /* ── Main ── */
+  .main { flex: 1; padding: 28px 36px; overflow-y: auto; }
+  .page-title { font-family: 'Playfair Display', serif; font-size: 26px; font-weight: 700; margin-bottom: 4px; }
+  .page-subtitle { color: var(--text-muted); font-size: 14px; margin-bottom: 24px; }
+
+  /* ── Dashboard Cards ── */
+  .dashboard-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .dash-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 20px;
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition);
+  }
+  .dash-card:hover { box-shadow: var(--shadow); transform: translateY(-1px); }
+  .dash-card-label { font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; color: var(--text-muted); margin-bottom: 8px; }
+  .dash-card-value { font-family: 'Playfair Display', serif; font-size: 28px; font-weight: 700; }
+  .dash-card-sub { font-size: 12px; color: var(--text-muted); margin-top: 4px; }
+
+  /* ── Tables ── */
+  .table-wrapper {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .table-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+  }
+  .table-title { font-weight: 600; font-size: 15px; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; min-width: 900px; }
+  th {
+    text-align: left;
+    padding: 12px 14px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: var(--text-muted);
+    border-bottom: 1px solid var(--border);
+    background: var(--surface-alt);
+    white-space: nowrap;
+  }
+  td {
+    padding: 11px 14px;
+    font-size: 13.5px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: middle;
+    white-space: nowrap;
+  }
+  tr:last-child td { border-bottom: none; }
+  tr:hover td { background: var(--surface-alt); }
+
+  .badge { display: inline-block; padding: 3px 10px; border-radius: 20px; font-size: 12px; font-weight: 600; line-height: 1.4; white-space: nowrap; }
+  .badge-pending { background: var(--amber-light); color: var(--amber); }
+  .badge-in-progress { background: var(--blue-light); color: var(--blue); }
+  .badge-shipped { background: var(--purple-light); color: var(--purple); }
+  .badge-completed { background: var(--green-light); color: var(--green); }
+  .badge-cancelled { background: var(--red-light); color: var(--red); }
+  .badge-paid { background: var(--green-light); color: var(--green); }
+  .badge-unpaid { background: var(--red-light); color: var(--red); }
+  .badge-partial { background: var(--amber-light); color: var(--amber); }
+  .badge-invoiced { background: var(--blue-light); color: var(--blue); }
+
+  .empty-state { padding: 48px 20px; text-align: center; color: var(--text-muted); font-size: 14px; }
+
+  /* ── Forms ── */
+  .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .full-width { grid-column: 1 / -1; }
+  .form-group label { display: block; font-size: 13px; font-weight: 600; margin-bottom: 6px; color: var(--text); }
+  .form-group label .req { color: var(--red); }
+
+  input, select, textarea {
+    width: 100%;
+    padding: 10px 14px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    background: var(--surface);
+    color: var(--text);
+    transition: all var(--transition);
+    outline: none;
+  }
+  input:focus, select:focus, textarea:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-light); }
+  textarea { resize: vertical; min-height: 80px; }
+  select { cursor: pointer; }
+
+  /* ── Buttons ── */
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 20px;
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    font-weight: 600;
+    border: none;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: all var(--transition);
+  }
+  .btn svg { width: 16px; height: 16px; }
+  .btn-primary { background: var(--accent); color: white; }
+  .btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); box-shadow: var(--shadow); }
+  .btn-secondary { background: var(--surface); color: var(--text); border: 1px solid var(--border); }
+  .btn-secondary:hover { background: var(--surface-alt); border-color: var(--border-strong); }
+  .btn-sm { padding: 6px 14px; font-size: 13px; }
+
+  .toolbar { display: flex; align-items: center; gap: 12px; margin-bottom: 20px; flex-wrap: wrap; }
+  .search-box { position: relative; flex: 1; max-width: 320px; }
+  .search-box input { padding-left: 36px; }
+  .search-box svg { position: absolute; left: 12px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); }
+
+  /* ── Modal ── */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(44,40,37,0.4);
+    backdrop-filter: blur(4px);
+    z-index: 500;
+    justify-content: center;
+    align-items: flex-start;
+    padding: 40px 20px;
+    overflow-y: auto;
+  }
+  .modal-overlay.active { display: flex; }
+  .modal {
+    background: var(--surface);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    width: 100%;
+    max-width: 640px;
+    animation: modalIn 0.25s ease;
+  }
+  @keyframes modalIn { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }
+  .modal-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--border); }
+  .modal-head h3 { font-family: 'Playfair Display', serif; font-size: 20px; }
+  .modal-close { background: none; border: none; cursor: pointer; color: var(--text-muted); padding: 4px; border-radius: 6px; transition: all var(--transition); }
+  .modal-close:hover { background: var(--surface-alt); color: var(--text); }
+  .modal-body { padding: 24px; }
+  .modal-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 16px 24px; border-top: 1px solid var(--border); background: var(--surface-alt); border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+  .form-divider { grid-column: 1 / -1; border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+  .form-section-label { grid-column: 1 / -1; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.8px; color: var(--text-muted); padding-top: 4px; }
+
+  /* ── Row actions ── */
+  .row-actions { display: flex; gap: 6px; }
+  .row-actions button {
+    background: none; border: 1px solid var(--border); border-radius: 6px;
+    padding: 5px 8px; cursor: pointer; color: var(--text-muted); font-size: 12px; transition: all var(--transition);
+  }
+  .row-actions button:hover { background: var(--surface-alt); color: var(--text); border-color: var(--border-strong); }
+
+  .notes-cell { max-width: 180px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-muted); font-style: italic; }
+
+  /* ── Toast ── */
+  .toast-container { position: fixed; top: 76px; right: 24px; z-index: 1000; display: flex; flex-direction: column; gap: 8px; }
+  .toast {
+    background: var(--surface); border: 1px solid var(--border); border-left: 4px solid var(--green);
+    border-radius: var(--radius); padding: 12px 20px; font-size: 14px; font-weight: 500; box-shadow: var(--shadow-lg);
+    animation: toastIn 0.3s ease, toastOut 0.3s ease 2.5s forwards;
+  }
+  @keyframes toastIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+  @keyframes toastOut { to { opacity: 0; transform: translateX(20px); } }
+
+  .section { display: none; }
+  .section.active { display: block; }
+
+  @media (max-width: 768px) {
+    .sidebar { display: none; }
+    .main { padding: 20px 16px; }
+    .form-grid { grid-template-columns: 1fr; }
+    .dashboard-cards { grid-template-columns: 1fr 1fr; }
+    .header { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+  <div class="logo">Order<span>Flow</span></div>
+  <div class="header-stats" id="headerStats"></div>
+</div>
+
+<!-- Layout -->
+<div class="layout">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="nav-section">Main</div>
+    <div class="nav-item active" onclick="showSection('dashboard')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/></svg>
+      Dashboard
+    </div>
+    <div class="nav-item" onclick="showSection('orders')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2"/><rect x="9" y="3" width="6" height="4" rx="1"/><line x1="9" y1="12" x2="15" y2="12"/><line x1="9" y1="16" x2="13" y2="16"/></svg>
+      Orders
+    </div>
+    <div class="nav-section">Records</div>
+    <div class="nav-item" onclick="showSection('customers')">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+      Customers
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+
+    <!-- DASHBOARD -->
+    <div class="section active" id="sec-dashboard">
+      <h1 class="page-title">Dashboard</h1>
+      <p class="page-subtitle">Overview of your order activity</p>
+      <div class="dashboard-cards" id="dashCards"></div>
+      <div class="table-wrapper">
+        <div class="table-header"><span class="table-title">Recent Orders</span></div>
+        <div class="table-scroll" id="recentOrdersTable"></div>
+      </div>
+    </div>
+
+    <!-- ORDERS -->
+    <div class="section" id="sec-orders">
+      <h1 class="page-title">Orders</h1>
+      <p class="page-subtitle">Manage and track all customer orders</p>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search orders..." id="orderSearch" oninput="renderOrders()">
+        </div>
+        <select id="orderStatusFilter" onchange="renderOrders()" style="width:auto;max-width:160px;">
+          <option value="">All Order Status</option>
+          <option value="Pending">Pending</option>
+          <option value="In Progress">In Progress</option>
+          <option value="Shipped">Shipped</option>
+          <option value="Completed">Completed</option>
+          <option value="Cancelled">Cancelled</option>
+        </select>
+        <select id="paymentStatusFilter" onchange="renderOrders()" style="width:auto;max-width:160px;">
+          <option value="">All Payment Status</option>
+          <option value="Unpaid">Unpaid</option>
+          <option value="Partial">Partial</option>
+          <option value="Invoiced">Invoiced</option>
+          <option value="Paid">Paid</option>
+        </select>
+        <button class="btn btn-primary" onclick="openOrderModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          New Order
+        </button>
+      </div>
+      <div class="table-wrapper"><div class="table-scroll" id="ordersTable"></div></div>
+    </div>
+
+    <!-- CUSTOMERS -->
+    <div class="section" id="sec-customers">
+      <h1 class="page-title">Customers</h1>
+      <p class="page-subtitle">Your customer directory</p>
+      <div class="toolbar">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+          <input type="text" placeholder="Search customers..." id="custSearch" oninput="renderCustomers()">
+        </div>
+        <button class="btn btn-primary" onclick="openCustomerModal()">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Add Customer
+        </button>
+      </div>
+      <div class="table-wrapper"><div class="table-scroll" id="customersTable"></div></div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ===== CUSTOMER MODAL ===== -->
+<div class="modal-overlay" id="customerModal">
+  <div class="modal">
+    <div class="modal-head">
+      <h3 id="custModalTitle">Add Customer</h3>
+      <button class="modal-close" onclick="closeModal('customerModal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="custEditId">
+      <div class="form-grid">
+        <div class="form-group full-width">
+          <label>Customer Name <span class="req">*</span></label>
+          <input id="custName" placeholder="John Smith">
+        </div>
+        <div class="form-group">
+          <label>Email</label>
+          <input id="custEmail" type="email" placeholder="john@example.com">
+        </div>
+        <div class="form-group">
+          <label>Phone</label>
+          <input id="custPhone" placeholder="(555) 123-4567">
+        </div>
+        <hr class="form-divider">
+        <div class="form-section-label">Default Address</div>
+        <div class="form-group full-width">
+          <label>Street Address</label>
+          <input id="custAddress" placeholder="123 Main St">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input id="custCity" placeholder="Nashville">
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <input id="custState" placeholder="TN" maxlength="2" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group full-width">
+          <label>Zip</label>
+          <input id="custZip" placeholder="37209" style="max-width:180px;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('customerModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveCustomer()">Save Customer</button>
+    </div>
+  </div>
+</div>
+
+<!-- ===== ORDER MODAL ===== -->
+<div class="modal-overlay" id="orderModal">
+  <div class="modal" style="max-width:680px;">
+    <div class="modal-head">
+      <h3 id="orderModalTitle">New Order</h3>
+      <button class="modal-close" onclick="closeModal('orderModal')"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="orderEditId">
+      <div class="form-grid">
+        <div class="form-group">
+          <label>Date Received <span class="req">*</span></label>
+          <input id="orderDateReceived" type="date">
+        </div>
+        <div class="form-group">
+          <label>Date Due</label>
+          <input id="orderDateDue" type="date">
+        </div>
+        <div class="form-group">
+          <label>Customer <span class="req">*</span></label>
+          <select id="orderCustomer" onchange="autofillAddress()">
+            <option value="">-- Select Customer --</option>
+          </select>
+        </div>
+        <div class="form-group" style="display:flex;align-items:end;">
+          <button class="btn btn-secondary btn-sm" type="button" onclick="closeModal('orderModal');openCustomerModal()" style="white-space:nowrap;">+ New Customer</button>
+        </div>
+
+        <hr class="form-divider">
+        <div class="form-section-label">Item Details</div>
+
+        <div class="form-group full-width">
+          <label>Item <span class="req">*</span></label>
+          <input id="orderItem" placeholder="e.g. Custom T-Shirt, Embroidered Hat...">
+        </div>
+        <div class="form-group">
+          <label>Size</label>
+          <input id="orderSize" placeholder="e.g. Large, 12x18, One Size...">
+        </div>
+        <div class="form-group">
+          <label>Color</label>
+          <input id="orderColor" placeholder="e.g. Navy Blue">
+        </div>
+
+        <hr class="form-divider">
+        <div class="form-section-label">Shipping Address</div>
+
+        <div class="form-group full-width">
+          <label>Address</label>
+          <input id="orderAddress" placeholder="123 Main St">
+        </div>
+        <div class="form-group">
+          <label>City</label>
+          <input id="orderCity" placeholder="Nashville">
+        </div>
+        <div class="form-group">
+          <label>State</label>
+          <input id="orderState" placeholder="TN" maxlength="2" style="text-transform:uppercase;">
+        </div>
+        <div class="form-group full-width">
+          <label>Zip</label>
+          <input id="orderZip" placeholder="37209" style="max-width:180px;">
+        </div>
+
+        <hr class="form-divider">
+        <div class="form-section-label">Status</div>
+
+        <div class="form-group">
+          <label>Payment Status</label>
+          <select id="orderPaymentStatus">
+            <option>Unpaid</option>
+            <option>Partial</option>
+            <option>Invoiced</option>
+            <option>Paid</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>Order Status</label>
+          <select id="orderOrderStatus">
+            <option>Pending</option>
+            <option>In Progress</option>
+            <option>Shipped</option>
+            <option>Completed</option>
+            <option>Cancelled</option>
+          </select>
+        </div>
+
+        <div class="form-group full-width">
+          <label>Special Notes</label>
+          <textarea id="orderNotes" rows="3" placeholder="Any special instructions, requests, or notes for this order..."></textarea>
+        </div>
+      </div>
+    </div>
+    <div class="modal-foot">
+      <button class="btn btn-secondary" onclick="closeModal('orderModal')">Cancel</button>
+      <button class="btn btn-primary" onclick="saveOrder()">Save Order</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toast -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // ── Data Store ──
+  let data = {
+    customers: [
+      { id: 1, name: 'Sarah Johnson', email: 'sarah.j@email.com', phone: '(615) 555-0142', address: '412 Oak Lane', city: 'Nashville', state: 'TN', zip: '37209' },
+      { id: 2, name: 'Michael Chen', email: 'mchen@techcorp.com', phone: '(615) 555-0287', address: '88 Commerce St', city: 'Nashville', state: 'TN', zip: '37203' },
+      { id: 3, name: 'Emily Rodriguez', email: 'emily.r@gmail.com', phone: '(615) 555-0319', address: '1500 Hillsboro Pike', city: 'Nashville', state: 'TN', zip: '37212' },
+    ],
+    orders: [
+      { id: 1001, customerId: 1, dateReceived: '2026-02-15', dateDue: '2026-02-28', item: 'Custom Embroidered Polo', size: 'Medium', color: 'Navy Blue', address: '412 Oak Lane', city: 'Nashville', state: 'TN', zip: '37209', paymentStatus: 'Paid', orderStatus: 'In Progress', notes: 'Logo on left chest, gold thread' },
+      { id: 1002, customerId: 2, dateReceived: '2026-02-17', dateDue: '2026-03-03', item: 'Vinyl Banner', size: '4ft x 8ft', color: 'Full Color', address: '88 Commerce St', city: 'Nashville', state: 'TN', zip: '37203', paymentStatus: 'Invoiced', orderStatus: 'Pending', notes: 'Outdoor use - needs grommets' },
+      { id: 1003, customerId: 3, dateReceived: '2026-02-20', dateDue: '2026-02-25', item: 'Screen Printed T-Shirts', size: 'Assorted (S-XL)', color: 'Black', address: '1500 Hillsboro Pike', city: 'Nashville', state: 'TN', zip: '37212', paymentStatus: 'Unpaid', orderStatus: 'Pending', notes: 'Qty 50, front print only' },
+    ],
+    nextCustId: 4,
+    nextOrderId: 1004,
+  };
+
+  // ── Helpers ──
+  const $ = function(id) { return document.getElementById(id); };
+  const custName = function(id) { var c = data.customers.find(function(x) { return x.id === id; }); return c ? c.name : 'Unknown'; };
+  const fmtDate = function(d) { if (!d) return '--'; var parts = d.split('-'); return parts[1] + '/' + parts[2] + '/' + parts[0]; };
+
+  function badgeHtml(val) {
+    var cls = {
+      'Pending': 'badge-pending', 'In Progress': 'badge-in-progress',
+      'Shipped': 'badge-shipped', 'Completed': 'badge-completed', 'Cancelled': 'badge-cancelled',
+      'Paid': 'badge-paid', 'Unpaid': 'badge-unpaid', 'Partial': 'badge-partial', 'Invoiced': 'badge-invoiced'
+    };
+    return '<span class="badge ' + (cls[val] || 'badge-pending') + '">' + val + '</span>';
+  }
+
+  function toast(msg) {
+    var el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = msg;
+    $('toastContainer').appendChild(el);
+    setTimeout(function() { el.remove(); }, 3000);
+  }
+
+  function isDueSoon(d) {
+    if (!d) return false;
+    var due = new Date(d + 'T00:00:00');
+    var now = new Date(); now.setHours(0,0,0,0);
+    var diff = (due - now) / (1000*60*60*24);
+    return diff >= 0 && diff <= 3;
+  }
+  function isOverdue(d) {
+    if (!d) return false;
+    var due = new Date(d + 'T00:00:00');
+    var now = new Date(); now.setHours(0,0,0,0);
+    return due < now;
+  }
+
+  // ── Navigation ──
+  function showSection(name) {
+    document.querySelectorAll('.section').forEach(function(s) { s.classList.remove('active'); });
+    document.querySelectorAll('.nav-item').forEach(function(n) { n.classList.remove('active'); });
+    $('sec-' + name).classList.add('active');
+    var map = { dashboard: 0, orders: 1, customers: 2 };
+    var navItems = document.querySelectorAll('.nav-item');
+    if (map[name] !== undefined) navItems[map[name]].classList.add('active');
+    renderAll();
+  }
+
+  function openModal(id) { $(id).classList.add('active'); }
+  function closeModal(id) { $(id).classList.remove('active'); }
+
+  // ── Dashboard ──
+  function renderDashboard() {
+    var active = data.orders.filter(function(o) { return o.orderStatus !== 'Cancelled' && o.orderStatus !== 'Completed'; });
+    var pending = data.orders.filter(function(o) { return o.orderStatus === 'Pending'; }).length;
+    var inProgress = data.orders.filter(function(o) { return o.orderStatus === 'In Progress'; }).length;
+    var overdue = active.filter(function(o) { return isOverdue(o.dateDue); }).length;
+    var dueSoon = active.filter(function(o) { return isDueSoon(o.dateDue); }).length;
+    var unpaid = data.orders.filter(function(o) { return o.paymentStatus === 'Unpaid' || o.paymentStatus === 'Partial'; }).length;
+
+    $('dashCards').innerHTML =
+      '<div class="dash-card"><div class="dash-card-label">Total Orders</div><div class="dash-card-value">' + data.orders.length + '</div><div class="dash-card-sub">' + active.length + ' active</div></div>' +
+      '<div class="dash-card"><div class="dash-card-label">Pending</div><div class="dash-card-value">' + pending + '</div><div class="dash-card-sub">' + inProgress + ' in progress</div></div>' +
+      '<div class="dash-card"><div class="dash-card-label">Due Soon</div><div class="dash-card-value"' + (dueSoon > 0 ? ' style="color:var(--amber)"' : '') + '>' + dueSoon + '</div><div class="dash-card-sub">' + (overdue > 0 ? '<span style="color:var(--red);font-weight:600;">' + overdue + ' overdue</span>' : 'None overdue') + '</div></div>' +
+      '<div class="dash-card"><div class="dash-card-label">Awaiting Payment</div><div class="dash-card-value"' + (unpaid > 0 ? ' style="color:var(--red)"' : '') + '>' + unpaid + '</div><div class="dash-card-sub">' + data.customers.length + ' total customers</div></div>';
+
+    var recent = data.orders.slice().sort(function(a, b) { return b.id - a.id; }).slice(0, 5);
+    if (!recent.length) {
+      $('recentOrdersTable').innerHTML = '<div class="empty-state">No orders yet. Create your first order to get started!</div>';
+    } else {
+      var rows = '';
+      for (var i = 0; i < recent.length; i++) {
+        var o = recent[i];
+        var dueTd = fmtDate(o.dateDue);
+        if (isOverdue(o.dateDue) && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled') {
+          dueTd = '<span style="color:var(--red);font-weight:600;">' + dueTd + ' &#9888;</span>';
+        } else if (isDueSoon(o.dateDue) && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled') {
+          dueTd = '<span style="color:var(--amber);font-weight:600;">' + dueTd + '</span>';
+        }
+        rows += '<tr><td><strong>#' + o.id + '</strong></td><td>' + custName(o.customerId) + '</td><td>' + o.item + '</td><td>' + dueTd + '</td><td>' + badgeHtml(o.paymentStatus) + '</td><td>' + badgeHtml(o.orderStatus) + '</td></tr>';
+      }
+      $('recentOrdersTable').innerHTML = '<table><thead><tr><th>Order #</th><th>Customer</th><th>Item</th><th>Date Due</th><th>Payment</th><th>Status</th></tr></thead><tbody>' + rows + '</tbody></table>';
+    }
+
+    $('headerStats').innerHTML = '<span><strong>' + data.orders.length + '</strong> Orders</span><span><strong>' + active.length + '</strong> Active</span><span><strong>' + data.customers.length + '</strong> Customers</span>';
+  }
+
+  // ── Orders Table ──
+  function renderOrders() {
+    var q = ($('orderSearch') ? $('orderSearch').value : '').toLowerCase();
+    var sf = $('orderStatusFilter') ? $('orderStatusFilter').value : '';
+    var pf = $('paymentStatusFilter') ? $('paymentStatusFilter').value : '';
+    var orders = data.orders.slice().sort(function(a, b) { return b.id - a.id; });
+
+    if (q) {
+      orders = orders.filter(function(o) {
+        var searchStr = '#' + o.id + ' ' + custName(o.customerId) + ' ' + o.item + ' ' + o.color + ' ' + o.size + ' ' + o.notes;
+        return searchStr.toLowerCase().indexOf(q) !== -1;
+      });
+    }
+    if (sf) orders = orders.filter(function(o) { return o.orderStatus === sf; });
+    if (pf) orders = orders.filter(function(o) { return o.paymentStatus === pf; });
+
+    if (!orders.length) {
+      $('ordersTable').innerHTML = '<div class="empty-state">No orders found.</div>';
+      return;
+    }
+
+    var rows = '';
+    for (var i = 0; i < orders.length; i++) {
+      var o = orders[i];
+      var dueTd = fmtDate(o.dateDue);
+      if (isOverdue(o.dateDue) && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled') {
+        dueTd = '<span style="color:var(--red);font-weight:600;">' + dueTd + ' &#9888;</span>';
+      } else if (isDueSoon(o.dateDue) && o.orderStatus !== 'Completed' && o.orderStatus !== 'Cancelled') {
+        dueTd = '<span style="color:var(--amber);font-weight:600;">' + dueTd + '</span>';
+      }
+      var loc = [o.city, o.state, o.zip].filter(Boolean).join(', ');
+      var noteTitle = (o.notes || '').replace(/"/g, '&quot;');
+      rows += '<tr>' +
+        '<td><strong>#' + o.id + '</strong></td>' +
+        '<td>' + custName(o.customerId) + '</td>' +
+        '<td>' + o.item + '</td>' +
+        '<td>' + (o.size || '--') + '</td>' +
+        '<td>' + (o.color || '--') + '</td>' +
+        '<td>' + fmtDate(o.dateReceived) + '</td>' +
+        '<td>' + dueTd + '</td>' +
+        '<td>' + (loc || '--') + '</td>' +
+        '<td>' + badgeHtml(o.paymentStatus) + '</td>' +
+        '<td>' + badgeHtml(o.orderStatus) + '</td>' +
+        '<td class="notes-cell" title="' + noteTitle + '">' + (o.notes || '--') + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button onclick="editOrder(' + o.id + ')" title="Edit">&#9998;</button>' +
+          '<button onclick="deleteOrder(' + o.id + ')" title="Delete">&#10005;</button>' +
+        '</div></td></tr>';
+    }
+
+    $('ordersTable').innerHTML = '<table><thead><tr>' +
+      '<th>Order #</th><th>Customer</th><th>Item</th><th>Size</th><th>Color</th><th>Received</th><th>Due</th><th>Location</th><th>Payment</th><th>Status</th><th>Notes</th><th>Actions</th>' +
+      '</tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  // ── Customers Table ──
+  function renderCustomers() {
+    var q = ($('custSearch') ? $('custSearch').value : '').toLowerCase();
+    var custs = data.customers.slice();
+    if (q) {
+      custs = custs.filter(function(c) {
+        return (c.name + ' ' + c.email + ' ' + c.phone).toLowerCase().indexOf(q) !== -1;
+      });
+    }
+    if (!custs.length) {
+      $('customersTable').innerHTML = '<div class="empty-state">No customers found.</div>';
+      return;
+    }
+
+    var rows = '';
+    for (var i = 0; i < custs.length; i++) {
+      var c = custs[i];
+      var orderCount = data.orders.filter(function(o) { return o.customerId === c.id; }).length;
+      rows += '<tr>' +
+        '<td><strong>' + c.name + '</strong></td>' +
+        '<td>' + (c.email || '--') + '</td>' +
+        '<td>' + (c.phone || '--') + '</td>' +
+        '<td>' + (c.address || '--') + '</td>' +
+        '<td>' + (c.city || '--') + '</td>' +
+        '<td>' + (c.state || '--') + '</td>' +
+        '<td>' + (c.zip || '--') + '</td>' +
+        '<td>' + orderCount + '</td>' +
+        '<td><div class="row-actions">' +
+          '<button onclick="editCustomer(' + c.id + ')" title="Edit">&#9998;</button>' +
+          '<button onclick="deleteCustomer(' + c.id + ')" title="Delete">&#10005;</button>' +
+        '</div></td></tr>';
+    }
+    $('customersTable').innerHTML = '<table><thead><tr><th>Name</th><th>Email</th><th>Phone</th><th>Address</th><th>City</th><th>State</th><th>Zip</th><th>Orders</th><th>Actions</th></tr></thead><tbody>' + rows + '</tbody></table>';
+  }
+
+  function renderAll() { renderDashboard(); renderOrders(); renderCustomers(); }
+
+  // ── Customer CRUD ──
+  function openCustomerModal(cust) {
+    $('custEditId').value = cust ? cust.id : '';
+    $('custModalTitle').textContent = cust ? 'Edit Customer' : 'Add Customer';
+    $('custName').value = cust ? cust.name : '';
+    $('custEmail').value = cust ? cust.email : '';
+    $('custPhone').value = cust ? cust.phone : '';
+    $('custAddress').value = cust ? cust.address : '';
+    $('custCity').value = cust ? cust.city : '';
+    $('custState').value = cust ? cust.state : '';
+    $('custZip').value = cust ? cust.zip : '';
+    openModal('customerModal');
+  }
+  function editCustomer(id) {
+    var c = data.customers.find(function(x) { return x.id === id; });
+    openCustomerModal(c);
+  }
+  function saveCustomer() {
+    var name = $('custName').value.trim();
+    if (!name) { toast('Please enter a customer name.'); return; }
+    var obj = {
+      name: name,
+      email: $('custEmail').value.trim(),
+      phone: $('custPhone').value.trim(),
+      address: $('custAddress').value.trim(),
+      city: $('custCity').value.trim(),
+      state: $('custState').value.trim().toUpperCase(),
+      zip: $('custZip').value.trim()
+    };
+    var editId = $('custEditId').value;
+    if (editId) {
+      var c = data.customers.find(function(x) { return x.id === +editId; });
+      Object.assign(c, obj);
+      toast('Customer updated!');
+    } else {
+      obj.id = data.nextCustId++;
+      data.customers.push(obj);
+      toast('Customer added!');
+    }
+    closeModal('customerModal');
+    renderAll();
+  }
+  function deleteCustomer(id) {
+    if (!confirm('Delete this customer? Orders referencing them will show "Unknown".')) return;
+    data.customers = data.customers.filter(function(c) { return c.id !== id; });
+    toast('Customer deleted.');
+    renderAll();
+  }
+
+  // ── Order CRUD ──
+  function populateCustomerDropdown(selectedId) {
+    var opts = '<option value="">-- Select Customer --</option>';
+    for (var i = 0; i < data.customers.length; i++) {
+      var c = data.customers[i];
+      opts += '<option value="' + c.id + '"' + (c.id === selectedId ? ' selected' : '') + '>' + c.name + '</option>';
+    }
+    $('orderCustomer').innerHTML = opts;
+  }
+
+  function autofillAddress() {
+    var cId = +$('orderCustomer').value;
+    var c = data.customers.find(function(x) { return x.id === cId; });
+    if (c) {
+      $('orderAddress').value = c.address || '';
+      $('orderCity').value = c.city || '';
+      $('orderState').value = c.state || '';
+      $('orderZip').value = c.zip || '';
+    }
+  }
+
+  function openOrderModal(order) {
+    populateCustomerDropdown(order ? order.customerId : null);
+    $('orderEditId').value = order ? order.id : '';
+    $('orderModalTitle').textContent = order ? 'Edit Order #' + order.id : 'New Order';
+    $('orderDateReceived').value = order ? order.dateReceived : new Date().toISOString().slice(0, 10);
+    $('orderDateDue').value = order ? order.dateDue : '';
+    $('orderItem').value = order ? order.item : '';
+    $('orderSize').value = order ? order.size : '';
+    $('orderColor').value = order ? order.color : '';
+    $('orderAddress').value = order ? order.address : '';
+    $('orderCity').value = order ? order.city : '';
+    $('orderState').value = order ? order.state : '';
+    $('orderZip').value = order ? order.zip : '';
+    $('orderPaymentStatus').value = order ? order.paymentStatus : 'Unpaid';
+    $('orderOrderStatus').value = order ? order.orderStatus : 'Pending';
+    $('orderNotes').value = order ? order.notes : '';
+    openModal('orderModal');
+  }
+  function editOrder(id) {
+    var o = data.orders.find(function(x) { return x.id === id; });
+    openOrderModal(o);
+  }
+
+  function saveOrder() {
+    var customerId = +$('orderCustomer').value;
+    var item = $('orderItem').value.trim();
+    var dateReceived = $('orderDateReceived').value;
+    if (!customerId) { toast('Please select a customer.'); return; }
+    if (!item) { toast('Please enter an item.'); return; }
+    if (!dateReceived) { toast('Please enter a date received.'); return; }
+
+    var obj = {
+      customerId: customerId,
+      dateReceived: dateReceived,
+      dateDue: $('orderDateDue').value,
+      item: item,
+      size: $('orderSize').value.trim(),
+      color: $('orderColor').value.trim(),
+      address: $('orderAddress').value.trim(),
+      city: $('orderCity').value.trim(),
+      state: $('orderState').value.trim().toUpperCase(),
+      zip: $('orderZip').value.trim(),
+      paymentStatus: $('orderPaymentStatus').value,
+      orderStatus: $('orderOrderStatus').value,
+      notes: $('orderNotes').value.trim()
+    };
+
+    var editId = $('orderEditId').value;
+    if (editId) {
+      var o = data.orders.find(function(x) { return x.id === +editId; });
+      Object.assign(o, obj);
+      toast('Order updated!');
+    } else {
+      obj.id = data.nextOrderId++;
+      data.orders.push(obj);
+      toast('Order #' + obj.id + ' created!');
+    }
+    closeModal('orderModal');
+    renderAll();
+  }
+
+  function deleteOrder(id) {
+    if (!confirm('Delete order #' + id + '?')) return;
+    data.orders = data.orders.filter(function(o) { return o.id !== id; });
+    toast('Order deleted.');
+    renderAll();
+  }
+
+  // ── Init ──
+  renderAll();
+</script>
+</body>
+</html>
